@@ -16,8 +16,8 @@ on:  # yamllint disable-line rule:truthy
       - trunk
       - candidate # Release Candidates
     paths:
-      - "module/**" # Only run when the module is updated
-      - "scripts/**" # Only run when the scripts are updated
+      - "module/*" # Only run when the module is updated
+      - "scripts/*" # Only run when the scripts are updated
   # Release (Push)
   push:
     branches:
@@ -26,8 +26,8 @@ on:  # yamllint disable-line rule:truthy
       - trunk
       - candidate # Release Candidates
     paths:
-      - "module/**" # Only run when the module is updated
-      - "scripts/**" # Only run when the scripts are updated
+      - "module/*" # Only run when the module is updated
+      - "scripts/*" # Only run when the scripts are updated
   # Manual Trigger
   workflow_dispatch:
     inputs:
@@ -58,6 +58,7 @@ env:
 
   # Nix
   NIXPKGS_ALLOW_UNFREE: 1
+  CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   # Semantic Versioning changelog tool (convco or github)
   # - Use convco for conventional commits
@@ -118,7 +119,7 @@ jobs:
              */
             function extractVersionType(label) {
               const normalizedLabel = label.toLowerCase().trim();
-              
+
               // Check if the label contains any of our core version types
               for (const versionType of coreVersionTypes) {
                 // Create patterns to match the version type in various formats:
@@ -126,7 +127,7 @@ jobs:
                 // 2. With prefix: "semver major", "version-minor", "v_patch"
                 // 3. With suffix: "major-rc", "minor candidate", "patch_alpha"
                 // 4. Both: "semver major-rc", "version minor candidate"
-                
+
                 const patterns = [
                   // Exact match (whole word)
                   new RegExp(`^${versionType}$`, 'i'),
@@ -135,12 +136,12 @@ jobs:
                   // As part of compound words but still distinct
                   new RegExp(`(?:^|[^a-z])${versionType}(?:[^a-z]|$)`, 'i')
                 ];
-                
+
                 if (patterns.some(pattern => pattern.test(normalizedLabel))) {
                   return versionType;
                 }
               }
-              
+
               return null;
             }
 
@@ -156,10 +157,10 @@ jobs:
                 sha: context.sha,
                 per_page: 1
               });
-              
+
               const commit = commits[0];
               const prNumber = commit.commit.message.match(/\(#(\d+)\)/);
-              
+
               if (prNumber) {
                 const { data: prData } = await github.rest.pulls.get({
                   owner: context.repo.owner,
@@ -224,7 +225,7 @@ jobs:
             const originalLabel = versionLabelsInfo[0].originalLabel;
 
             // Determine if this is a release candidate based on branch or label content
-            const isCandidate = context.ref.includes('candidate') || 
+            const isCandidate = context.ref.includes('candidate') ||
                                originalLabel.toLowerCase().includes('rc') ||
                                originalLabel.toLowerCase().includes('candidate') ||
                                originalLabel.toLowerCase().includes('alpha') ||
@@ -243,7 +244,7 @@ jobs:
         run: |
           # Get the latest tag or default to v0.0.0
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "LATEST_TAG=${LATEST_TAG}" >> $GITHUB_OUTPUT
+          echo "LATEST_TAG=${LATEST_TAG}" >> "$GITHUB_OUTPUT"
           echo "✅ Latest tag: ${LATEST_TAG}"
 
       - id: calculate_semver
@@ -471,7 +472,7 @@ jobs:
           echo "📝 Generating changelog..."
 
           CHANGELOG_FILE="/tmp/changelog.md"
-          echo "CHANGELOG_FILE=${CHANGELOG_FILE}" >> $GITHUB_OUTPUT
+          echo "CHANGELOG_FILE=${CHANGELOG_FILE}" >> "$GITHUB_OUTPUT"
 
           # Get the current tag that was just created and strip the 'v' prefix
           CURRENT_TAG="${{ needs.semantic-version.outputs.tag }}"
@@ -489,7 +490,7 @@ jobs:
           if [[ "${PREVIOUS_TAG:-EMPTY}" == "EMPTY" ]];
           then
             echo "📋 No previous tag found, generating changelog from beginning"
-            
+
             # For first release, generate changelog for all commits
             if convco changelog --unreleased "${CURRENT_TAG_STRIPPED}" > "${CHANGELOG_FILE}" 2>/dev/null;
             then
@@ -501,7 +502,7 @@ jobs:
 
           else
             echo "📋 Generating changelog from ${PREVIOUS_TAG} to HEAD"
-            
+
             # Generate changelog for the range between tags
             if convco changelog "${PREVIOUS_TAG}..HEAD" --unreleased "${CURRENT_TAG_STRIPPED}" > "${CHANGELOG_FILE}" 2>/dev/null;
             then
@@ -548,7 +549,7 @@ jobs:
 
             // Determine changelog tool priority:
             // 1. Workflow input (manual trigger)
-            // 2. Repository variable 
+            // 2. Repository variable
             // 3. Environment variable
             // 4. Default to 'github'
             const workflowInput = '${{ github.event.inputs.changelog_tool }}';
@@ -570,10 +571,10 @@ jobs:
             if (semverChangelogTool === 'convco') {
               try {
                 convcoChangelog = fs.readFileSync(changelogFile, 'utf8').trim();
-                
+
                 // Check if changelog has meaningful content (more than just empty lines)
                 const meaningfulLines = convcoChangelog.split('\n').filter(line => line.trim().length > 0);
-                
+
                 if (meaningfulLines.length > 1) {
                   useConvcoChangelog = true;
                   console.log('✅ Using convco-generated changelog');
@@ -593,7 +594,7 @@ jobs:
 
             // Build release body components
             const versionBadge = isCandidate ? '🚧 **Release Candidate**' : '🚀 **Release**';
-            const warningSection = isCandidate ? 
+            const warningSection = isCandidate ?
               '\n\n> ⚠️ **Warning**: This is a release candidate and is not recommended for production use.\n' : '';
 
             const releaseDetails = [
@@ -611,9 +612,9 @@ jobs:
             ].join('\n');
 
             if (useConvcoChangelog) {
-              
+
               console.log('📝 Using convco-generated release notes');
-              
+
               releaseBody = [
                 versionBadge,
                 '',
@@ -628,9 +629,9 @@ jobs:
               generateReleaseNotes = false;
 
             } else {
-              
+
               console.log('📝 Using GitHub auto-generated release notes');
-              
+
               releaseBody = [
                 versionBadge,
                 '',
@@ -720,7 +721,7 @@ jobs:
           # Determine overall result
           if [[ "${{ needs.semantic-version.result }}" == "success" ]];
           then
-            
+
             if [[ "${{ github.event_name }}" == "pull_request" ]];
             then
               RESULT="success"
@@ -753,8 +754,8 @@ jobs:
             DESCRIPTION="Failed to determine semantic version"
           fi
 
-          echo "RESULT=${RESULT}" >> $GITHUB_OUTPUT
-          echo "DESCRIPTION=${DESCRIPTION}" >> $GITHUB_OUTPUT
+          echo "RESULT=${RESULT}" >> "$GITHUB_OUTPUT"
+          echo "DESCRIPTION=${DESCRIPTION}" >> "$GITHUB_OUTPUT"
 
           echo "=== Final Status ==="
           echo "Result: ${RESULT}"

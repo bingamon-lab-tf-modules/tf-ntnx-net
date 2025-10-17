@@ -2,18 +2,9 @@
   pkgs,
   config,
   lib,
-  inputs,
   ...
 }:
 let
-
-  pkgsUnstable = import inputs.nixpkgs-unstable {
-    config.allowUnfree = true;
-  };
-
-  packagesUnstable = with pkgsUnstable; [
-    #opentofu
-  ];
 
   packages = with pkgs; [
     bashInteractive
@@ -82,9 +73,9 @@ in
   cachix = {
     enable = true;
     pull = [
-      "bingamon"
+      "bingamon-lab-tf-modules"
     ];
-    push = "bingamon";
+    push = "bingamon-lab-tf-modules";
   };
 
   devenv = {
@@ -101,9 +92,7 @@ in
   };
 
   packages =
-    packages
-    ++ packagesUnstable
-    ++ lib.optionals (!config.container.isBuilding || config.name == "devenv") devPackages;
+    packages ++ lib.optionals (!config.container.isBuilding || config.name == "devenv") devPackages;
 
   enterShell = ''
     figlet -f starwars -w 180 $PROJECT
@@ -135,17 +124,10 @@ in
   };
 
   git-hooks = {
-    excludes = [
-      ".cache"
-      ".devenv"
-      ".direnv"
-      ".git"
-      ".vscode"
-      "bundle"
-      "vendor"
-    ];
+    excludes = [ ];
     hooks = {
       actionlint.enable = true;
+      action-validator.enable = true;
       check-json.enable = true;
       check-merge-conflicts.enable = true;
       check-shebang-scripts-are-executable.enable = true;
