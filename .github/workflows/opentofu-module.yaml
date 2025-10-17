@@ -40,6 +40,7 @@ env:
 
   # Nix
   NIXPKGS_ALLOW_UNFREE: 1
+  CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   # OpenTofu Module
   MODULE_HOME: module
@@ -113,6 +114,19 @@ jobs:
         run: |
           nix profile install --accept-flake-config nixpkgs#devenv
 
+      - id: opentofu_init
+        name: OpenTofu Init
+        shell: devenv shell --quiet bash -- -e {0}
+        run: |
+          echo "🔧 Initializing OpenTofu..."
+          cd "${MODULE_HOME}"
+          if ! tofu init -backend=false;
+          then
+            echo "❌ OpenTofu initialization failed!"
+            exit 1
+          fi
+          echo "✅ OpenTofu initialization completed"
+
       - id: opentofu_format
         name: OpenTofu Format
         shell: devenv shell --quiet bash -- -e {0}
@@ -146,19 +160,6 @@ jobs:
             echo "⚠️ terraform-docs not available, documentation check failed"
             exit 1
           fi
-
-      - id: opentofu_init
-        name: OpenTofu Init
-        shell: devenv shell --quiet bash -- -e {0}
-        run: |
-          echo "🔧 Initializing OpenTofu..."
-          cd "${MODULE_HOME}"
-          if ! tofu init -backend=false;
-          then
-            echo "❌ OpenTofu initialization failed!"
-            exit 1
-          fi
-          echo "✅ OpenTofu initialization completed"
 
       - id: opentofu_validate
         name: OpenTofu Validate
@@ -228,22 +229,28 @@ jobs:
         if: always()
         run: |
           echo "=== OpenTofu Module Build Status ==="
-          echo "Format: ${{ steps.opentofu_format.outcome }}"
           echo "Init: ${{ steps.opentofu_init.outcome }}"
+          echo "Format: ${{ steps.opentofu_format.outcome }}"
           echo "Validate: ${{ steps.opentofu_validate.outcome }}"
           echo "Docs: ${{ steps.opentofu_docs_check.outcome }}"
           echo "Security: ${{ steps.opentofu_security_scan.outcome }}"
           echo "Lint: ${{ steps.opentofu_lint.outcome }}"
           echo "Test: ${{ steps.opentofu_test.outcome }}"
 
-          if [[ "${{ steps.opentofu_format.outcome }}" == "success" && \
-                "${{ steps.opentofu_init.outcome }}" == "success" && \
-                "${{ steps.opentofu_validate.outcome }}" == "success" && \
-                "${{ steps.opentofu_test.outcome }}" == "success" ]]; then
-            echo "STATUS=success" >> $GITHUB_OUTPUT
+          if [[ \
+            "${{ steps.opentofu_init.outcome }}" == "success" && \
+            "${{ steps.opentofu_format.outcome }}" == "success" && \
+            "${{ steps.opentofu_docs_check.outcome }}" == "success" && \
+            "${{ steps.opentofu_validate.outcome }}" == "success" && \
+            "${{ steps.opentofu_security_scan.outcome }}" == "success" && \
+            "${{ steps.opentofu_lint.outcome }}" == "success" && \
+            "${{ steps.opentofu_test.outcome }}" == "success" \
+          ]]; \
+          then
+            echo "STATUS=success" >> "$GITHUB_OUTPUT"
             echo "✅ All OpenTofu checks passed!"
           else
-            echo "STATUS=failure" >> $GITHUB_OUTPUT
+            echo "STATUS=failure" >> "$GITHUB_OUTPUT"
             echo "❌ Some OpenTofu checks failed!"
           fi
 
@@ -312,8 +319,8 @@ jobs:
         run: |
           VERSION=${{ github.event.release.tag_name }}
           VERSION_STRIPPED=${VERSION#v}
-          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
-          echo "VERSION_STRIPPED=${VERSION_STRIPPED}" >> $GITHUB_OUTPUT
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "VERSION_STRIPPED=${VERSION_STRIPPED}" >> "$GITHUB_OUTPUT"
           echo "📦 Publishing module version: ${VERSION_STRIPPED}"
           echo "🏷️  Release name: ${{ github.event.release.name }}"
           echo "🔗 Release URL: ${{ github.event.release.html_url }}"
@@ -335,14 +342,14 @@ jobs:
           cd /tmp
           tar -czf "${PACKAGE_NAME}.tar.gz" "${PACKAGE_NAME}"
 
-          echo "PACKAGE_PATH=/tmp/${PACKAGE_NAME}.tar.gz" >> $GITHUB_OUTPUT
-          echo "PACKAGE_NAME=${PACKAGE_NAME}" >> $GITHUB_OUTPUT
+          echo "PACKAGE_PATH=/tmp/${PACKAGE_NAME}.tar.gz" >> "$GITHUB_OUTPUT"
+          echo "PACKAGE_NAME=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
           echo "✅ Package created: ${PACKAGE_NAME}.tar.gz"
           ls -la /tmp/${PACKAGE_NAME}
 
       - id: publish_artifactory
         name: Publish to Artifactory
-        if: vars.ARTIFACTORY_URL != ''
+        if: vars.ARTIFACTORY_URL != '' && steps.create_package.outcome == 'success'
         shell: devenv shell --quiet bash -- -e {0}
         env:
           ARTIFACTORY_URL: ${{ vars.ARTIFACTORY_URL }}
@@ -374,7 +381,7 @@ jobs:
         name: Publish Status
         if: always()
         run: |
-          if [[ "${{ steps.publish_artifactory.outcome }}" == "success" || "${{ steps.publish_github_packages.outcome }}" == "success" ]]; then
+          if [[ "${{ steps.publish_artifactory.outcome }}" == "success" ]]; then
             echo "✅ Module published successfully!"
             echo "📦 Version: ${{ steps.extract_version.outputs.VERSION_STRIPPED }}"
           else

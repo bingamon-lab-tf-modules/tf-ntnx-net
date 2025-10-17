@@ -4,4 +4,4 @@
 
 An overview of the module goes here
 
-Additional Terraform Module documentation is available [here](module/README.md)
+The [Terraform Module](module/README.md) documentation contains the available variables and outputs.
