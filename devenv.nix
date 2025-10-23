@@ -37,27 +37,27 @@ let
     # Terraform/OpenTofu
     packer
     terraform-docs
-    terraform-providers.aci
-    terraform-providers.artifactory
-    terraform-providers.bigip
-    terraform-providers.dns
-    terraform-providers.github
-    terraform-providers.http
-    terraform-providers.kubectl
-    terraform-providers.libvirt
-    terraform-providers.local
-    terraform-providers.null
-    terraform-providers.nutanix
-    terraform-providers.random
-    terraform-providers.remote
-    terraform-providers.secret
-    terraform-providers.shell
-    terraform-providers.sops
-    terraform-providers.ssh
-    terraform-providers.sysdig
-    terraform-providers.time
-    terraform-providers.tls
-    terraform-providers.vault
+    terraform-providers.ciscodevnet_aci
+    terraform-providers.dmacvicar_libvirt
+    terraform-providers.f5networks_bigip
+    terraform-providers.gavinbunney_kubectl
+    terraform-providers.hashicorp_dns
+    terraform-providers.hashicorp_http
+    terraform-providers.hashicorp_local
+    terraform-providers.hashicorp_null
+    terraform-providers.hashicorp_random
+    terraform-providers.hashicorp_time
+    terraform-providers.hashicorp_tls
+    terraform-providers.hashicorp_vault
+    terraform-providers.integrations_github
+    terraform-providers.jfrog_artifactory
+    terraform-providers.loafoe_ssh
+    terraform-providers.numtide_secret
+    terraform-providers.nutanix_nutanix
+    terraform-providers.scottwinkler_shell
+    terraform-providers.carlpett_sops
+    terraform-providers.sysdiglabs_sysdig
+    terraform-providers.tenstad_remote
     tflint
     vault
   ];
