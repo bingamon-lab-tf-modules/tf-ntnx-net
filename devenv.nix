@@ -210,7 +210,7 @@ in
       };
       tflint.enable = true;
       trim-trailing-whitespace.enable = true;
-      trufflehog.enable = false;
+      trufflehog.enable = true;
       typos.enable = true;
       yamllint = {
         enable = true;
