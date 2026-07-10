@@ -14,6 +14,7 @@ let
     # Common
     convco
     figlet
+    gh
     git
     gnutar
     hello
@@ -155,7 +156,6 @@ in
       golines.enable = true;
       gotest.enable = true;
       govet.enable = true;
-      gptcommit.enable = true;
       markdownlint = {
         enable = true;
         excludes = [
