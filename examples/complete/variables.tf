@@ -1,9 +1,35 @@
 ##################################################
-# VPCs
+# Provider Variables
+##################################################
+
+variable "nutanix_username" {
+  description = "Nutanix Prism Central username"
+  type        = string
+}
+
+variable "nutanix_password" {
+  description = "Nutanix Prism Central password"
+  type        = string
+  sensitive   = true
+}
+
+variable "nutanix_endpoint" {
+  description = "Nutanix Prism Central endpoint"
+  type        = string
+}
+
+variable "nutanix_insecure" {
+  description = "Skip TLS verification"
+  type        = bool
+  default     = false
+}
+
+##################################################
+# Module Variables
 ##################################################
 
 variable "vpcs" {
-  description = "A map of VPCs to manage in Nutanix."
+  description = "Map of VPCs to create"
   type = map(object({
     name        = string
     description = optional(string, null)
@@ -40,30 +66,10 @@ variable "vpcs" {
     external_routing_domain_reference = optional(string, null)
   }))
   default = {}
-
-  validation {
-    condition = alltrue([
-      for k, v in var.vpcs :
-      contains(["REGULAR", "TRANSIT"], v.vpc_type)
-    ])
-    error_message = "VPC 'vpc_type' must be one of: REGULAR, TRANSIT."
-  }
-
-  validation {
-    condition = alltrue([
-      for k, v in var.vpcs :
-      v.name != null && v.name != ""
-    ])
-    error_message = "VPC 'name' is required and must be a non-empty string."
-  }
 }
 
-##################################################
-# Subnets
-##################################################
-
 variable "subnets" {
-  description = "A map of subnets to manage in Nutanix."
+  description = "Map of subnets to create"
   type = map(object({
     name                             = string
     description                      = optional(string, null)
@@ -124,46 +130,10 @@ variable "subnets" {
     }), null)
   }))
   default = {}
-
-  validation {
-    condition = alltrue([
-      for k, v in var.subnets :
-      v.name != null && v.name != ""
-    ])
-    error_message = "Subnet 'name' is required and must be a non-empty string."
-  }
-
-  validation {
-    condition = alltrue([
-      for k, v in var.subnets :
-      contains(["VLAN", "OVERLAY"], v.subnet_type)
-    ])
-    error_message = "Subnet 'subnet_type' must be one of: VLAN, OVERLAY."
-  }
-
-  validation {
-    condition = alltrue([
-      for k, v in var.subnets :
-      v.subnet_type != "VLAN" || v.network_id != null
-    ])
-    error_message = "VLAN subnets require a 'network_id'."
-  }
-
-  validation {
-    condition = alltrue([
-      for k, v in var.subnets :
-      v.subnet_type != "OVERLAY" || v.vpc_reference != null
-    ])
-    error_message = "OVERLAY subnets require a 'vpc_reference'."
-  }
 }
 
-##################################################
-# Floating IPs
-##################################################
-
 variable "floating_ips" {
-  description = "A map of floating IPs to manage in Nutanix."
+  description = "Map of floating IPs to create"
   type = map(object({
     name                      = string
     description               = optional(string, null)
@@ -194,22 +164,10 @@ variable "floating_ips" {
     }), null)
   }))
   default = {}
-
-  validation {
-    condition = alltrue([
-      for k, v in var.floating_ips :
-      v.external_subnet_reference != null && v.external_subnet_reference != ""
-    ])
-    error_message = "Floating IP 'external_subnet_reference' is required and must be a non-empty string."
-  }
 }
 
-##################################################
-# Routing Policies (PBR)
-##################################################
-
 variable "routing_policies" {
-  description = "A map of routing policies (PBR) to manage in Nutanix VPCs."
+  description = "Map of routing policies (PBR) to create"
   type = map(object({
     name        = string
     description = optional(string, null)
@@ -288,54 +246,10 @@ variable "routing_policies" {
     })
   }))
   default = {}
-
-  validation {
-    condition = alltrue([
-      for k, v in var.routing_policies :
-      v.name != null && v.name != "" && v.vpc_ext_id != null && v.vpc_ext_id != "" && v.priority != null && v.priority >= 0
-    ])
-    error_message = "Routing policy 'name' and 'vpc_ext_id' are required non-empty strings, and 'priority' must be a non-negative number."
-  }
-
-  validation {
-    condition = alltrue([
-      for k, v in var.routing_policies :
-      contains(["ANY", "EXTERNAL", "SUBNET"], v.policies.policy_match.source.address_type)
-    ])
-    error_message = "Routing policy source 'address_type' must be one of: ANY, EXTERNAL, SUBNET."
-  }
-
-  validation {
-    condition = alltrue([
-      for k, v in var.routing_policies :
-      contains(["ANY", "EXTERNAL", "SUBNET"], v.policies.policy_match.destination.address_type)
-    ])
-    error_message = "Routing policy destination 'address_type' must be one of: ANY, EXTERNAL, SUBNET."
-  }
-
-  validation {
-    condition = alltrue([
-      for k, v in var.routing_policies :
-      contains(["TCP", "UDP", "ANY", "ICMP", "PROTOCOL_NUMBER"], v.policies.policy_match.protocol_type)
-    ])
-    error_message = "Routing policy 'protocol_type' must be one of: TCP, UDP, ANY, ICMP, PROTOCOL_NUMBER."
-  }
-
-  validation {
-    condition = alltrue([
-      for k, v in var.routing_policies :
-      contains(["PERMIT", "DENY", "REROUTE"], v.policies.policy_action.action_type)
-    ])
-    error_message = "Routing policy 'action_type' must be one of: PERMIT, DENY, REROUTE."
-  }
 }
 
-##################################################
-# Routes
-##################################################
-
 variable "routes" {
-  description = "A map of routes to manage in Nutanix VPCs."
+  description = "Map of routes to create"
   type = map(object({
     name               = optional(string, null)
     description        = optional(string, null)
@@ -374,20 +288,4 @@ variable "routes" {
     }), null)
   }))
   default = {}
-
-  validation {
-    condition = alltrue([
-      for k, v in var.routes :
-      v.route_table_ext_id != null && v.route_table_ext_id != ""
-    ])
-    error_message = "Route 'route_table_ext_id' is required and must be a non-empty string."
-  }
-
-  validation {
-    condition = alltrue([
-      for k, v in var.routes :
-      contains(["STATIC", "LOCAL", "DYNAMIC"], v.route_type)
-    ])
-    error_message = "Route 'route_type' must be one of: STATIC, LOCAL, DYNAMIC."
-  }
 }
