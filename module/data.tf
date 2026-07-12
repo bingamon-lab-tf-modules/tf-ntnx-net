@@ -13,3 +13,8 @@ data "nutanix_floating_ips_v2" "existing_floating_ips" {}
 
 # Lookup existing clusters for subnet placement
 data "nutanix_clusters_v2" "clusters" {}
+
+# Lookup existing network functions (gated by enable_data_lookups)
+data "nutanix_network_functions_v2" "existing_network_functions" {
+  count = var.enable_data_lookups ? 1 : 0
+}

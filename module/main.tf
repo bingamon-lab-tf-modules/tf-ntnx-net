@@ -426,3 +426,46 @@ resource "nutanix_routes_v2" "route" {
     }
   }
 }
+
+##################################################
+# Network Functions (Flow service chaining)
+##################################################
+
+resource "nutanix_network_function_v2" "network_function" {
+  for_each = var.network_functions
+
+  name                    = each.value.name
+  description             = each.value.description
+  high_availability_mode  = each.value.high_availability_mode
+  traffic_forwarding_mode = each.value.traffic_forwarding_mode
+  failure_handling        = each.value.failure_handling
+
+  dynamic "nic_pairs" {
+    for_each = each.value.nic_pairs
+    content {
+      ingress_nic_reference = nic_pairs.value.ingress_nic_reference
+      egress_nic_reference  = nic_pairs.value.egress_nic_reference
+      vm_reference          = nic_pairs.value.vm_reference
+      is_enabled            = nic_pairs.value.is_enabled
+    }
+  }
+
+  dynamic "data_plane_health_check_config" {
+    for_each = each.value.data_plane_health_check_config != null ? [each.value.data_plane_health_check_config] : []
+    content {
+      failure_threshold = data_plane_health_check_config.value.failure_threshold
+      interval_secs     = data_plane_health_check_config.value.interval_secs
+      success_threshold = data_plane_health_check_config.value.success_threshold
+      timeout_secs      = data_plane_health_check_config.value.timeout_secs
+    }
+  }
+
+  dynamic "metadata" {
+    for_each = each.value.metadata != null ? [each.value.metadata] : []
+    content {
+      category_ids         = metadata.value.category_ids
+      owner_reference_id   = metadata.value.owner_reference_id
+      project_reference_id = metadata.value.project_reference_id
+    }
+  }
+}

@@ -30,3 +30,17 @@ check "floating_ips_have_reference" {
     error_message = "Floating IPs should have either 'external_subnet_reference' or 'vpc_reference' specified."
   }
 }
+
+# Validate that every network function nic pair carries the ingress chain reference
+# required for service chaining / traffic steering.
+check "network_functions_have_chain_references" {
+  assert {
+    condition = alltrue([
+      for k, v in var.network_functions : alltrue([
+        for p in v.nic_pairs :
+        p.ingress_nic_reference != null && p.ingress_nic_reference != ""
+      ])
+    ])
+    error_message = "Network functions should reference an 'ingress_nic_reference' on every nic pair for service chaining."
+  }
+}

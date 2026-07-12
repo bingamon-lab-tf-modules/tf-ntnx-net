@@ -391,3 +391,99 @@ variable "routes" {
     error_message = "Route 'route_type' must be one of: STATIC, LOCAL, DYNAMIC."
   }
 }
+
+##################################################
+# Data Lookups
+##################################################
+
+variable "enable_data_lookups" {
+  description = "When true, enable discovery data sources for existing network functions (nutanix_network_functions_v2)."
+  type        = bool
+  default     = false
+}
+
+##################################################
+# Network Functions
+##################################################
+
+variable "network_functions" {
+  description = "A map of network functions (Flow service chaining / traffic steering) to manage in Nutanix."
+  type = map(object({
+    name                    = string
+    description             = optional(string, null)
+    high_availability_mode  = string                 # ACTIVE_PASSIVE
+    traffic_forwarding_mode = optional(string, null) # INLINE, VTAP
+    failure_handling        = optional(string, null) # NO_ACTION, FAIL_CLOSE, FAIL_OPEN
+
+    nic_pairs = list(object({
+      ingress_nic_reference = string
+      egress_nic_reference  = optional(string, null)
+      vm_reference          = optional(string, null)
+      is_enabled            = optional(bool, true)
+    }))
+
+    data_plane_health_check_config = optional(object({
+      failure_threshold = optional(number, null)
+      interval_secs     = optional(number, null)
+      success_threshold = optional(number, null)
+      timeout_secs      = optional(number, null)
+    }), null)
+
+    metadata = optional(object({
+      category_ids         = optional(list(string), null)
+      owner_reference_id   = optional(string, null)
+      project_reference_id = optional(string, null)
+    }), null)
+  }))
+  default = {}
+
+  validation {
+    condition = alltrue([
+      for k, v in var.network_functions :
+      v.name != null && v.name != ""
+    ])
+    error_message = "Network function 'name' is required and must be a non-empty string."
+  }
+
+  validation {
+    condition = alltrue([
+      for k, v in var.network_functions :
+      contains(["ACTIVE_PASSIVE"], v.high_availability_mode)
+    ])
+    error_message = "Network function 'high_availability_mode' must be one of: ACTIVE_PASSIVE."
+  }
+
+  validation {
+    condition = alltrue([
+      for k, v in var.network_functions :
+      v.traffic_forwarding_mode == null || contains(["INLINE", "VTAP"], coalesce(v.traffic_forwarding_mode, "INLINE"))
+    ])
+    error_message = "Network function 'traffic_forwarding_mode' must be one of: INLINE, VTAP."
+  }
+
+  validation {
+    condition = alltrue([
+      for k, v in var.network_functions :
+      v.failure_handling == null || contains(["NO_ACTION", "FAIL_CLOSE", "FAIL_OPEN"], coalesce(v.failure_handling, "FAIL_CLOSE"))
+    ])
+    error_message = "Network function 'failure_handling' must be one of: NO_ACTION, FAIL_CLOSE, FAIL_OPEN."
+  }
+
+  validation {
+    condition = alltrue([
+      for k, v in var.network_functions :
+      length(v.nic_pairs) >= 1 && length(v.nic_pairs) <= 2
+    ])
+    error_message = "Network function 'nic_pairs' must contain between 1 and 2 entries."
+  }
+
+  validation {
+    condition = alltrue([
+      for k, v in var.network_functions : alltrue([
+        for p in v.nic_pairs :
+        p.ingress_nic_reference != null && p.ingress_nic_reference != ""
+      ])
+    ])
+    error_message = "Each network function 'nic_pairs' entry requires a non-empty 'ingress_nic_reference'."
+  }
+}

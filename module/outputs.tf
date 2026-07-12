@@ -106,6 +106,28 @@ output "route_ids" {
 }
 
 ##################################################
+# Network Function Outputs
+##################################################
+
+output "network_functions" {
+  description = "Map of created network functions with their details."
+  value = {
+    for k, v in nutanix_network_function_v2.network_function : k => {
+      ext_id                  = v.ext_id
+      name                    = v.name
+      high_availability_mode  = v.high_availability_mode
+      traffic_forwarding_mode = v.traffic_forwarding_mode
+      failure_handling        = v.failure_handling
+    }
+  }
+}
+
+output "network_function_ids" {
+  description = "Map of network function keys to their external IDs."
+  value       = { for k, v in nutanix_network_function_v2.network_function : k => v.ext_id }
+}
+
+##################################################
 # Discovery Outputs (Existing Resources)
 ##################################################
 
@@ -129,6 +151,11 @@ output "existing_clusters" {
   value       = data.nutanix_clusters_v2.clusters
 }
 
+output "existing_network_functions" {
+  description = "Existing network functions discovered in the target Prism Central (null unless enable_data_lookups is true)."
+  value       = var.enable_data_lookups ? data.nutanix_network_functions_v2.existing_network_functions[0] : null
+}
+
 ##################################################
 # Summary
 ##################################################
@@ -136,13 +163,14 @@ output "existing_clusters" {
 output "network_summary" {
   description = "Summary of networking resources managed by this module."
   value = {
-    total_vpcs             = length(var.vpcs)
-    total_subnets          = length(var.subnets)
-    total_floating_ips     = length(var.floating_ips)
-    total_routing_policies = length(var.routing_policies)
-    total_routes           = length(var.routes)
-    vlan_subnets           = length(local.vlan_subnets)
-    overlay_subnets        = length(local.overlay_subnets)
-    external_subnets       = length(local.external_subnets)
+    total_vpcs              = length(var.vpcs)
+    total_subnets           = length(var.subnets)
+    total_floating_ips      = length(var.floating_ips)
+    total_routing_policies  = length(var.routing_policies)
+    total_routes            = length(var.routes)
+    total_network_functions = length(var.network_functions)
+    vlan_subnets            = length(local.vlan_subnets)
+    overlay_subnets         = length(local.overlay_subnets)
+    external_subnets        = length(local.external_subnets)
   }
 }
