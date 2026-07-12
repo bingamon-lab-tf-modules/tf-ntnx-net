@@ -66,6 +66,7 @@ No modules.
 | <a name="output_network_function_ids"></a> [network\_function\_ids](#output\_network\_function\_ids) | Map of network function keys to their external IDs. |
 | <a name="output_network_functions"></a> [network\_functions](#output\_network\_functions) | Map of created network functions with their details. |
 | <a name="output_network_summary"></a> [network\_summary](#output\_network\_summary) | Summary of networking resources managed by this module. |
+| <a name="output_outputs"></a> [outputs](#output\_outputs) | Aggregate of all module outputs (spec §7.6 contract, consumed by the landing zone as module.<x>.outputs). |
 | <a name="output_route_ids"></a> [route\_ids](#output\_route\_ids) | Map of route keys to their external IDs. |
 | <a name="output_routes"></a> [routes](#output\_routes) | Map of created routes with their details. |
 | <a name="output_routing_policies"></a> [routing\_policies](#output\_routing\_policies) | Map of created routing policies with their details. |
