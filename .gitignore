@@ -53,8 +53,15 @@ reports/
 .devenv*
 devenv.local.nix
 
+# Devenv-generated devcontainer (root .devcontainer.json is the tracked source)
+.devcontainer/
+
 # direnv
 .direnv
 
 # pre-commit
 .pre-commit-config.yaml
+
+# terraform-docs recursively emits a bare README in module/tests/ (no title);
+# it is a throwaway artifact, not tracked (mirrors the tf-ntnx-lcm layout).
+module/tests/README.md
