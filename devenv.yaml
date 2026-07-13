@@ -14,4 +14,4 @@ inputs:
         follows: nixpkgs
   nixpkgs:
     url: github:cachix/devenv-nixpkgs/bump-rolling
-allow_unfree: true
+allowUnfree: true
