@@ -15,9 +15,6 @@ on:  # yamllint disable-line rule:truthy
       - master
       - trunk
       - candidate # Release Candidates
-    paths:
-      - "module/*" # Only run when the module is updated
-      - "scripts/*" # Only run when the scripts are updated
   # Release (Push)
   push:
     branches:
@@ -25,9 +22,6 @@ on:  # yamllint disable-line rule:truthy
       - master
       - trunk
       - candidate # Release Candidates
-    paths:
-      - "module/*" # Only run when the module is updated
-      - "scripts/*" # Only run when the scripts are updated
   # Manual Trigger
   workflow_dispatch:
     inputs:
@@ -58,7 +52,6 @@ env:
 
   # Nix
   NIXPKGS_ALLOW_UNFREE: 1
-  CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   # Semantic Versioning changelog tool (convco or github)
   # - Use convco for conventional commits
