@@ -161,6 +161,7 @@ in
         ];
         settings = {
           configuration = {
+            MD041 = false;
             MD013 = {
               line_length = 500;
             };
@@ -183,6 +184,7 @@ in
         enable = true;
         excludes = [
           "module/README.md"
+          "module/tests/README.md"
         ];
       };
       # Use prettier instead.

@@ -67,3 +67,4 @@ trivycache
 utilize
 vtap
 prek
+nixos
