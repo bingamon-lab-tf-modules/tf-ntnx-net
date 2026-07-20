@@ -37,7 +37,6 @@ env:
 
   # Nix
   NIXPKGS_ALLOW_UNFREE: 1
-  CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
 defaults:
   run:
@@ -91,6 +90,11 @@ jobs:
         name: Devenv install
         run: |
           nix profile install --accept-flake-config nixpkgs#devenv
+
+      - id: prek_run
+        name: Run Pre-commit Hooks (all files)
+        shell: devenv shell --quiet bash -- -e {0}
+        run: prek run --all-files --show-diff-on-failure
 
       - id: devenv_test
         name: Devenv test
