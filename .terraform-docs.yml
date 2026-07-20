@@ -9,6 +9,8 @@ recursive:
   enabled: true
   path: .
   include-main: true
+  exclude:
+    - .terraform
 
 sections:
   hide: []
