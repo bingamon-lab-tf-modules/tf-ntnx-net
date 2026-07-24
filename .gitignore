@@ -65,3 +65,6 @@ devenv.local.nix
 # terraform-docs recursively emits a bare README in module/tests/ (no title);
 # it is a throwaway artifact, not tracked (mirrors the tf-ntnx-lcm layout).
 module/tests/README.md
+
+# TARS agent backlog scratch
+.tars/
