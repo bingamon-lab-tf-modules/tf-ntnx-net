@@ -53,8 +53,6 @@ reports/
 .devenv*
 devenv.local.nix
 
-# Devenv-generated devcontainer (root .devcontainer.json is the tracked source)
-.devcontainer/
 
 # direnv
 .direnv
