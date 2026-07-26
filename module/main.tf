@@ -75,7 +75,7 @@ resource "nutanix_subnet_v2" "subnet" {
   name                             = each.value.name
   description                      = each.value.description
   subnet_type                      = each.value.subnet_type
-  network_id                       = each.value.network_id
+  network_id                       = local.subnet_network_ids[each.key]
   cluster_reference                = each.value.cluster_reference
   vpc_reference                    = each.value.vpc_reference
   is_external                      = each.value.is_external

@@ -234,7 +234,7 @@ run "invalid_subnet_type" {
   expect_failures = [var.subnets]
 }
 
-# Test 6: VLAN subnet without a network_id should fail validation.
+# Test 6: VLAN subnet with neither vlan_id nor network_id should fail validation.
 run "vlan_subnet_requires_network_id" {
   command = plan
 
@@ -243,6 +243,90 @@ run "vlan_subnet_requires_network_id" {
       vlan = {
         name        = "vlan-no-id"
         subnet_type = "VLAN"
+      }
+    }
+  }
+
+  expect_failures = [var.subnets]
+}
+
+# Test 6a: 'vlan_id' alone satisfies a VLAN subnet and reaches nutanix_subnet_v2
+# as network_id.
+run "vlan_subnet_accepts_vlan_id_alias" {
+  command = plan
+
+  variables {
+    subnets = {
+      vlan = {
+        name              = "vlan-by-vlan-id"
+        cluster_reference = "00000000-0000-0000-0000-000000000001"
+        subnet_type       = "VLAN"
+        vlan_id           = 82
+      }
+    }
+  }
+
+  assert {
+    condition     = nutanix_subnet_v2.subnet["vlan"].network_id == 82
+    error_message = "vlan_id should resolve to the nutanix_subnet_v2 network_id"
+  }
+}
+
+# Test 6b: 'network_id' alone still works — the alias must not be a breaking change.
+run "vlan_subnet_accepts_network_id" {
+  command = plan
+
+  variables {
+    subnets = {
+      vlan = {
+        name              = "vlan-by-network-id"
+        cluster_reference = "00000000-0000-0000-0000-000000000001"
+        subnet_type       = "VLAN"
+        network_id        = 83
+      }
+    }
+  }
+
+  assert {
+    condition     = nutanix_subnet_v2.subnet["vlan"].network_id == 83
+    error_message = "network_id should still populate the nutanix_subnet_v2 network_id"
+  }
+}
+
+# Test 6c: Both set and in agreement is permitted.
+run "vlan_subnet_accepts_matching_aliases" {
+  command = plan
+
+  variables {
+    subnets = {
+      vlan = {
+        name              = "vlan-both-agree"
+        cluster_reference = "00000000-0000-0000-0000-000000000001"
+        subnet_type       = "VLAN"
+        vlan_id           = 84
+        network_id        = 84
+      }
+    }
+  }
+
+  assert {
+    condition     = nutanix_subnet_v2.subnet["vlan"].network_id == 84
+    error_message = "matching vlan_id/network_id should resolve to that value"
+  }
+}
+
+# Test 6d: Both set but disagreeing is a caller error, not something to resolve
+# silently in favour of one field.
+run "vlan_subnet_rejects_conflicting_aliases" {
+  command = plan
+
+  variables {
+    subnets = {
+      vlan = {
+        name        = "vlan-conflict"
+        subnet_type = "VLAN"
+        vlan_id     = 82
+        network_id  = 99
       }
     }
   }

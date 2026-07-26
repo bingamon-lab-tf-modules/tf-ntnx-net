@@ -68,6 +68,7 @@ variable "subnets" {
     name                             = string
     description                      = optional(string, null)
     subnet_type                      = string # VLAN, OVERLAY
+    vlan_id                          = optional(number, null)
     network_id                       = optional(number, null)
     cluster_reference                = optional(string, null)
     vpc_reference                    = optional(string, null)
@@ -144,9 +145,20 @@ variable "subnets" {
   validation {
     condition = alltrue([
       for k, v in var.subnets :
-      v.subnet_type != "VLAN" || v.network_id != null
+      v.subnet_type != "VLAN" || coalesce(v.vlan_id, v.network_id, -1) != -1
     ])
-    error_message = "VLAN subnets require a 'network_id'."
+    error_message = "VLAN subnets require a 'vlan_id' (or its alias 'network_id')."
+  }
+
+  # 'vlan_id' and 'network_id' are the same underlying field. Accepting both
+  # keeps existing callers working, but disagreeing values are always a mistake
+  # and must not be silently resolved in favour of one of them.
+  validation {
+    condition = alltrue([
+      for k, v in var.subnets :
+      v.vlan_id == null || v.network_id == null || v.vlan_id == v.network_id
+    ])
+    error_message = "Subnet 'vlan_id' and 'network_id' are aliases; set one, or set both to the same value."
   }
 
   validation {
