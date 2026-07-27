@@ -9,8 +9,27 @@ variable "vpcs" {
     description = optional(string, null)
     vpc_type    = optional(string, "REGULAR")
 
+    # External subnets this VPC routes out through. For each entry supply
+    # EXACTLY ONE of:
+    #   subnet_key       — key into var.subnets, resolved to that subnet's
+    #     ext_id after it is created. PREFERRED: subnet ext_ids are per-Prism
+    #     Central UUIDs, so a literal is neither portable nor knowable before
+    #     the first apply.
+    #   subnet_reference — a literal subnet ext_id. Escape hatch for an
+    #     external subnet NOT managed by this module.
+    #
+    # NOTE ON DEPENDENCY DIRECTION: resolving subnet_key makes
+    # nutanix_vpc_v2 depend on nutanix_subnet_v2. There is deliberately no
+    # matching 'vpc_key' on a subnet's vpc_reference — that would point the
+    # dependency back the other way and, because both are single for_each
+    # resources, produce a graph cycle. An OVERLAY subnet placed in a VPC
+    # created by this same module therefore still needs a literal
+    # vpc_reference (a two-phase apply). Splitting overlay subnets into their
+    # own resource block would lift that restriction, at the cost of changing
+    # resource addresses for anything already in state.
     external_subnets = optional(list(object({
-      subnet_reference = string
+      subnet_reference = optional(string, null)
+      subnet_key       = optional(string, null)
       external_ips = optional(list(object({
         ipv4 = optional(object({
           value         = string
@@ -55,6 +74,39 @@ variable "vpcs" {
       v.name != null && v.name != ""
     ])
     error_message = "VPC 'name' is required and must be a non-empty string."
+  }
+
+  validation {
+    condition = alltrue(flatten([
+      for k, v in var.vpcs : [
+        for e in v.external_subnets :
+        (e.subnet_reference != null) != (e.subnet_key != null)
+      ]
+    ]))
+    error_message = "Each VPC external subnet must set exactly one of 'subnet_key' or 'subnet_reference', not both and not neither."
+  }
+
+  validation {
+    condition = alltrue(flatten([
+      for k, v in var.vpcs : [
+        for e in v.external_subnets :
+        e.subnet_key == null || contains(keys(var.subnets), coalesce(e.subnet_key, ""))
+      ]
+    ]))
+    error_message = "VPC external subnet 'subnet_key' must be a key in var.subnets."
+  }
+
+  # A VPC can only route out through a subnet marked is_external. Catching it
+  # here names the offending subnet, instead of surfacing as an opaque API
+  # rejection at apply.
+  validation {
+    condition = alltrue(flatten([
+      for k, v in var.vpcs : [
+        for e in v.external_subnets :
+        e.subnet_key == null || try(var.subnets[e.subnet_key].is_external, false)
+      ]
+    ]))
+    error_message = "A VPC external subnet 'subnet_key' points at a subnet whose 'is_external' is not true. Only an external subnet can front a VPC."
   }
 }
 

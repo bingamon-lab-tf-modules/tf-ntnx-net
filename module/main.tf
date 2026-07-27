@@ -14,7 +14,14 @@ resource "nutanix_vpc_v2" "vpc" {
   dynamic "external_subnets" {
     for_each = each.value.external_subnets
     content {
-      subnet_reference = external_subnets.value.subnet_reference
+      # subnet_key resolves to a subnet this module creates; subnet_reference
+      # is the literal escape hatch. Variable validation guarantees exactly one
+      # is set, so this never has to arbitrate.
+      subnet_reference = (
+        external_subnets.value.subnet_key != null
+        ? nutanix_subnet_v2.subnet[external_subnets.value.subnet_key].ext_id
+        : external_subnets.value.subnet_reference
+      )
 
       dynamic "external_ips" {
         for_each = external_subnets.value.external_ips
