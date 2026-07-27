@@ -23,24 +23,17 @@ output "vpc_ids" {
 # Subnet Outputs
 ##################################################
 
+# Subnets live in two resource blocks (see locals: non_overlay_subnets), so
+# every subnet-shaped output merges both. Keys cannot collide: the two for_each
+# maps partition var.subnets on subnet_type.
 output "subnets" {
-  description = "Map of created subnets with their details."
-  value = {
-    for k, v in nutanix_subnet_v2.subnet : k => {
-      ext_id            = v.ext_id
-      name              = v.name
-      subnet_type       = v.subnet_type
-      network_id        = v.network_id
-      cluster_reference = v.cluster_reference
-      vpc_reference     = v.vpc_reference
-      is_external       = v.is_external
-    }
-  }
+  description = "Map of created subnets with their details, VLAN and OVERLAY alike."
+  value       = local.all_managed_subnets
 }
 
 output "subnet_ids" {
-  description = "Map of subnet keys to their external IDs."
-  value       = { for k, v in nutanix_subnet_v2.subnet : k => v.ext_id }
+  description = "Map of subnet keys to their external IDs, VLAN and OVERLAY alike."
+  value       = { for k, v in local.all_managed_subnets : k => v.ext_id }
 }
 
 ##################################################
@@ -196,19 +189,9 @@ output "outputs" {
         vpc_type    = v.vpc_type
       }
     }
-    vpc_ids = { for k, v in nutanix_vpc_v2.vpc : k => v.ext_id }
-    subnets = {
-      for k, v in nutanix_subnet_v2.subnet : k => {
-        ext_id            = v.ext_id
-        name              = v.name
-        subnet_type       = v.subnet_type
-        network_id        = v.network_id
-        cluster_reference = v.cluster_reference
-        vpc_reference     = v.vpc_reference
-        is_external       = v.is_external
-      }
-    }
-    subnet_ids = { for k, v in nutanix_subnet_v2.subnet : k => v.ext_id }
+    vpc_ids    = { for k, v in nutanix_vpc_v2.vpc : k => v.ext_id }
+    subnets    = local.all_managed_subnets
+    subnet_ids = { for k, v in local.all_managed_subnets : k => v.ext_id }
     floating_ips = {
       for k, v in nutanix_floating_ip_v2.floating_ip : k => {
         ext_id                    = v.ext_id

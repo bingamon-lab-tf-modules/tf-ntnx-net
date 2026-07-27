@@ -14,9 +14,26 @@ check "overlay_subnets_have_vpc" {
   assert {
     condition = alltrue([
       for k, v in var.subnets :
-      v.subnet_type != "OVERLAY" || v.vpc_reference != null
+      v.subnet_type != "OVERLAY" || v.vpc_reference != null || v.vpc_key != null
     ])
-    error_message = "OVERLAY subnets should have a 'vpc_reference' specified."
+    error_message = "OVERLAY subnets should have a 'vpc_key' or 'vpc_reference' specified."
+  }
+}
+
+# A subnet's vpc_key must name a VPC this module manages.
+#
+# This lives here rather than as a validation on var.subnets deliberately:
+# var.vpcs already validates against var.subnets (its external subnet_key), so
+# a validation pointing back would make the two variables mutually dependent,
+# which OpenTofu rejects outright as a cycle. A check block asserts the same
+# condition without adding that edge.
+check "overlay_subnet_vpc_keys_resolve" {
+  assert {
+    condition = alltrue([
+      for k, v in var.subnets :
+      v.vpc_key == null || contains(keys(var.vpcs), coalesce(v.vpc_key, ""))
+    ])
+    error_message = "A subnet's 'vpc_key' names a VPC that is not in var.vpcs."
   }
 }
 

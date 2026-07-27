@@ -24,8 +24,52 @@ locals {
   # Overlay subnets
   overlay_subnets = { for k, v in var.subnets : k => v if v.subnet_type == "OVERLAY" }
 
+  # Everything that is NOT an overlay: VLAN subnets, including external ones.
+  #
+  # These are split across two resource blocks on purpose. A VPC references its
+  # external subnet, and an overlay subnet references its VPC. With a single
+  # nutanix_subnet_v2 block those two references point at the same resource
+  # node in opposite directions, which is a graph cycle — so key-based
+  # resolution could only ever work in one direction. Splitting gives a linear
+  # dependency chain instead:
+  #
+  #   nutanix_subnet_v2.subnet  ->  nutanix_vpc_v2.vpc  ->  nutanix_subnet_v2.overlay_subnet
+  #        (external)                   (subnet_key)              (vpc_key)
+  #
+  # so a VPC and the overlay subnets inside it can be created in ONE apply.
+  non_overlay_subnets = { for k, v in var.subnets : k => v if v.subnet_type != "OVERLAY" }
+
   # External subnets
   external_subnets = { for k, v in var.subnets : k => v if v.is_external }
+
+  # Every subnet this module manages, across both resource blocks, in one map.
+  # Callers should not have to know about the split — that is an internal
+  # dependency-graph concern. Keys cannot collide: the two for_each maps
+  # partition var.subnets on subnet_type.
+  all_managed_subnets = merge(
+    {
+      for k, v in nutanix_subnet_v2.subnet : k => {
+        ext_id            = v.ext_id
+        name              = v.name
+        subnet_type       = v.subnet_type
+        network_id        = v.network_id
+        cluster_reference = v.cluster_reference
+        vpc_reference     = v.vpc_reference
+        is_external       = v.is_external
+      }
+    },
+    {
+      for k, v in nutanix_subnet_v2.overlay_subnet : k => {
+        ext_id            = v.ext_id
+        name              = v.name
+        subnet_type       = v.subnet_type
+        network_id        = v.network_id
+        cluster_reference = v.cluster_reference
+        vpc_reference     = v.vpc_reference
+        is_external       = v.is_external
+      }
+    },
+  )
 
 
 

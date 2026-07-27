@@ -76,8 +76,20 @@ resource "nutanix_vpc_v2" "vpc" {
 # Subnets
 ##################################################
 
+##################################################
+# Subnets (VLAN, including external)
+#
+# OVERLAY subnets are a SEPARATE resource below. See the note on
+# local.non_overlay_subnets: keeping them together would make the
+# VPC->external-subnet and overlay-subnet->VPC references a graph cycle.
+#
+# The two blocks are intentional duplicates. Terraform has no way to share a
+# resource body, so any change to the arguments below must be mirrored in
+# nutanix_subnet_v2.overlay_subnet.
+##################################################
+
 resource "nutanix_subnet_v2" "subnet" {
-  for_each = var.subnets
+  for_each = local.non_overlay_subnets
 
   name                             = each.value.name
   description                      = each.value.description
@@ -85,6 +97,122 @@ resource "nutanix_subnet_v2" "subnet" {
   network_id                       = local.subnet_network_ids[each.key]
   cluster_reference                = each.value.cluster_reference
   vpc_reference                    = each.value.vpc_reference
+  is_external                      = each.value.is_external
+  is_nat_enabled                   = each.value.is_nat_enabled
+  is_advanced_networking           = each.value.is_advanced_networking
+  virtual_switch_reference         = each.value.virtual_switch_reference
+  network_function_chain_reference = each.value.network_function_chain_reference
+  bridge_name                      = each.value.bridge_name
+
+  dynamic "reserved_ip_addresses" {
+    for_each = each.value.reserved_ip_addresses
+    content {
+      value = reserved_ip_addresses.value.value
+    }
+  }
+
+  dynamic "ip_config" {
+    for_each = each.value.ip_config != null ? [each.value.ip_config] : []
+    content {
+      dynamic "ipv4" {
+        for_each = ip_config.value.ipv4 != null ? [ip_config.value.ipv4] : []
+        content {
+          ip_subnet {
+            ip {
+              value = ipv4.value.ip_subnet.ip.value
+            }
+            prefix_length = ipv4.value.ip_subnet.prefix_length
+          }
+
+          dynamic "default_gateway_ip" {
+            for_each = ipv4.value.default_gateway_ip != null ? [ipv4.value.default_gateway_ip] : []
+            content {
+              value = default_gateway_ip.value.value
+            }
+          }
+
+          dynamic "dhcp_server_address" {
+            for_each = ipv4.value.dhcp_server_address != null ? [ipv4.value.dhcp_server_address] : []
+            content {
+              value = dhcp_server_address.value.value
+            }
+          }
+
+          dynamic "pool_list" {
+            for_each = ipv4.value.pool_list
+            content {
+              start_ip {
+                value = pool_list.value.start_ip.value
+              }
+              end_ip {
+                value = pool_list.value.end_ip.value
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  dynamic "dhcp_options" {
+    for_each = each.value.dhcp_options != null ? [each.value.dhcp_options] : []
+    content {
+      domain_name      = dhcp_options.value.domain_name
+      search_domains   = length(dhcp_options.value.search_domains) > 0 ? dhcp_options.value.search_domains : null
+      tftp_server_name = dhcp_options.value.tftp_server_name
+      boot_file_name   = dhcp_options.value.boot_file_name
+
+      dynamic "domain_name_servers" {
+        for_each = dhcp_options.value.domain_name_servers
+        content {
+          dynamic "ipv4" {
+            for_each = domain_name_servers.value.ipv4 != null ? [domain_name_servers.value.ipv4] : []
+            content {
+              value = ipv4.value.value
+            }
+          }
+        }
+      }
+
+      dynamic "ntp_servers" {
+        for_each = dhcp_options.value.ntp_servers
+        content {
+          dynamic "ipv4" {
+            for_each = ntp_servers.value.ipv4 != null ? [ntp_servers.value.ipv4] : []
+            content {
+              value = ipv4.value.value
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+##################################################
+# Overlay Subnets (inside a VPC)
+#
+# Split from nutanix_subnet_v2.subnet so the dependency chain stays linear:
+#   subnet (external) -> vpc -> overlay_subnet
+# which lets a VPC and the overlay subnets inside it be created in one apply.
+#
+# Body is a deliberate duplicate of nutanix_subnet_v2.subnet apart from
+# for_each and vpc_reference — keep the two in sync.
+##################################################
+
+resource "nutanix_subnet_v2" "overlay_subnet" {
+  for_each = local.overlay_subnets
+
+  name              = each.value.name
+  description       = each.value.description
+  subnet_type       = each.value.subnet_type
+  network_id        = local.subnet_network_ids[each.key]
+  cluster_reference = each.value.cluster_reference
+  vpc_reference = (
+    each.value.vpc_key != null
+    ? nutanix_vpc_v2.vpc[each.value.vpc_key].ext_id
+    : each.value.vpc_reference
+  )
   is_external                      = each.value.is_external
   is_nat_enabled                   = each.value.is_nat_enabled
   is_advanced_networking           = each.value.is_advanced_networking
