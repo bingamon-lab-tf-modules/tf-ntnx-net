@@ -96,49 +96,67 @@ locals {
   # Anything else can be read back from Prism Central on demand.
   ##################################################
 
+  # Each summary is built as a map keyed by ext_id and then flattened back to a
+  # list. That is not decoration: the Prism APIs do not guarantee a stable
+  # ordering, so returning the raw order made every plan show a spurious
+  # "Changes to Outputs" diff — the same entities shuffled between indices,
+  # rendered by OpenTofu as element-wise changes plus an add and a remove.
+  # Terraform iterates map keys in lexical order, so keying by ext_id makes the
+  # output deterministic and the diff disappears unless something really changed.
+
   existing_clusters_summary = [
-    for c in try(data.nutanix_clusters_v2.clusters.cluster_entities, []) : {
-      ext_id = c.ext_id
-      name   = c.name
-      # Which cluster can host a subnet: a PRISM_CENTRAL entity cannot, an AOS
-      # one can. Kept because it is the field that decides placement.
-      cluster_function = try(c.config[0].cluster_function, [])
-    }
+    for _k, v in {
+      for c in try(data.nutanix_clusters_v2.clusters.cluster_entities, []) : c.ext_id => {
+        ext_id = c.ext_id
+        name   = c.name
+        # Which cluster can host a subnet: a PRISM_CENTRAL entity cannot, an AOS
+        # one can. Kept because it is the field that decides placement.
+        cluster_function = try(c.config[0].cluster_function, [])
+      }
+    } : v
   ]
 
   existing_subnets_summary = [
-    for s in try(data.nutanix_subnets_v2.existing_subnets.subnets, []) : {
-      ext_id            = s.ext_id
-      name              = s.name
-      subnet_type       = s.subnet_type
-      network_id        = s.network_id
-      cluster_reference = s.cluster_reference
-      vpc_reference     = s.vpc_reference
-      is_external       = s.is_external
-    }
+    for _k, v in {
+      for s in try(data.nutanix_subnets_v2.existing_subnets.subnets, []) : s.ext_id => {
+        ext_id            = s.ext_id
+        name              = s.name
+        subnet_type       = s.subnet_type
+        network_id        = s.network_id
+        cluster_reference = s.cluster_reference
+        vpc_reference     = s.vpc_reference
+        is_external       = s.is_external
+      }
+    } : v
   ]
 
   existing_vpcs_summary = [
-    for v in try(data.nutanix_vpcs_v2.existing_vpcs.vpcs, []) : {
-      ext_id      = v.ext_id
-      name        = v.name
-      description = v.description
-      vpc_type    = v.vpc_type
-    }
+    for _k, v in {
+      for x in try(data.nutanix_vpcs_v2.existing_vpcs.vpcs, []) : x.ext_id => {
+        ext_id      = x.ext_id
+        name        = x.name
+        description = x.description
+        vpc_type    = x.vpc_type
+      }
+    } : v
   ]
 
   existing_floating_ips_summary = [
-    for f in try(data.nutanix_floating_ips_v2.existing_floating_ips.floating_ips, []) : {
-      ext_id                    = f.ext_id
-      name                      = f.name
-      external_subnet_reference = f.external_subnet_reference
-    }
+    for _k, v in {
+      for f in try(data.nutanix_floating_ips_v2.existing_floating_ips.floating_ips, []) : f.ext_id => {
+        ext_id                    = f.ext_id
+        name                      = f.name
+        external_subnet_reference = f.external_subnet_reference
+      }
+    } : v
   ]
 
   existing_network_functions_summary = var.enable_data_lookups ? [
-    for n in try(data.nutanix_network_functions_v2.existing_network_functions[0].network_functions, []) : {
-      ext_id = n.ext_id
-      name   = n.name
-    }
+    for _k, v in {
+      for n in try(data.nutanix_network_functions_v2.existing_network_functions[0].network_functions, []) : n.ext_id => {
+        ext_id = n.ext_id
+        name   = n.name
+      }
+    } : v
   ] : null
 }
