@@ -9,8 +9,27 @@ variable "vpcs" {
     description = optional(string, null)
     vpc_type    = optional(string, "REGULAR")
 
+    # External subnets this VPC routes out through. For each entry supply
+    # EXACTLY ONE of:
+    #   subnet_key       — key into var.subnets, resolved to that subnet's
+    #     ext_id after it is created. PREFERRED: subnet ext_ids are per-Prism
+    #     Central UUIDs, so a literal is neither portable nor knowable before
+    #     the first apply.
+    #   subnet_reference — a literal subnet ext_id. Escape hatch for an
+    #     external subnet NOT managed by this module.
+    #
+    # NOTE ON DEPENDENCY DIRECTION: resolving subnet_key makes nutanix_vpc_v2
+    # depend on nutanix_subnet_v2. Overlay subnets carry the mirror-image
+    # 'vpc_key', which depends back on the VPC — so they live in their own
+    # resource block (nutanix_subnet_v2.overlay_subnet) to keep the chain
+    # linear rather than circular:
+    #
+    #   subnet (external)  ->  vpc  ->  overlay_subnet
+    #
+    # A VPC and the overlay subnets inside it therefore create in ONE apply.
     external_subnets = optional(list(object({
-      subnet_reference = string
+      subnet_reference = optional(string, null)
+      subnet_key       = optional(string, null)
       external_ips = optional(list(object({
         ipv4 = optional(object({
           value         = string
@@ -56,6 +75,39 @@ variable "vpcs" {
     ])
     error_message = "VPC 'name' is required and must be a non-empty string."
   }
+
+  validation {
+    condition = alltrue(flatten([
+      for k, v in var.vpcs : [
+        for e in v.external_subnets :
+        (e.subnet_reference != null) != (e.subnet_key != null)
+      ]
+    ]))
+    error_message = "Each VPC external subnet must set exactly one of 'subnet_key' or 'subnet_reference', not both and not neither."
+  }
+
+  validation {
+    condition = alltrue(flatten([
+      for k, v in var.vpcs : [
+        for e in v.external_subnets :
+        e.subnet_key == null || contains(keys(var.subnets), coalesce(e.subnet_key, ""))
+      ]
+    ]))
+    error_message = "VPC external subnet 'subnet_key' must be a key in var.subnets."
+  }
+
+  # A VPC can only route out through a subnet marked is_external. Catching it
+  # here names the offending subnet, instead of surfacing as an opaque API
+  # rejection at apply.
+  validation {
+    condition = alltrue(flatten([
+      for k, v in var.vpcs : [
+        for e in v.external_subnets :
+        e.subnet_key == null || try(var.subnets[e.subnet_key].is_external, false)
+      ]
+    ]))
+    error_message = "A VPC external subnet 'subnet_key' points at a subnet whose 'is_external' is not true. Only an external subnet can front a VPC."
+  }
 }
 
 ##################################################
@@ -65,12 +117,17 @@ variable "vpcs" {
 variable "subnets" {
   description = "A map of subnets to manage in Nutanix."
   type = map(object({
-    name                             = string
-    description                      = optional(string, null)
-    subnet_type                      = string # VLAN, OVERLAY
-    vlan_id                          = optional(number, null)
-    network_id                       = optional(number, null)
-    cluster_reference                = optional(string, null)
+    name              = string
+    description       = optional(string, null)
+    subnet_type       = string # VLAN, OVERLAY
+    vlan_id           = optional(number, null)
+    network_id        = optional(number, null)
+    cluster_reference = optional(string, null)
+    # OVERLAY subnets only. Supply EXACTLY ONE of:
+    #   vpc_key       — key into var.vpcs, resolved to that VPC's ext_id after
+    #     it is created, so a VPC and its overlay subnets apply in one pass.
+    #   vpc_reference — a literal VPC ext_id, for a VPC not managed here.
+    vpc_key                          = optional(string, null)
     vpc_reference                    = optional(string, null)
     is_external                      = optional(bool, false)
     is_nat_enabled                   = optional(bool, null)
@@ -164,9 +221,26 @@ variable "subnets" {
   validation {
     condition = alltrue([
       for k, v in var.subnets :
-      v.subnet_type != "OVERLAY" || v.vpc_reference != null
+      v.subnet_type != "OVERLAY" || (v.vpc_reference != null) != (v.vpc_key != null)
     ])
-    error_message = "OVERLAY subnets require a 'vpc_reference'."
+    error_message = "OVERLAY subnets require exactly one of 'vpc_key' or 'vpc_reference'."
+  }
+
+  # NOTE: "vpc_key must exist in var.vpcs" is asserted in checks.tf, not here.
+  # var.vpcs already validates against var.subnets (external subnet_key), and a
+  # validation pointing back the other way makes the two variables mutually
+  # dependent — OpenTofu rejects that as
+  # "Cycle: var.vpcs (expand, reference), var.subnets (expand, reference)".
+  # A check block asserts the same thing without creating that edge.
+
+  # vpc_key is resolved only on the overlay resource. Setting it on a VLAN
+  # subnet would be silently ignored, so reject it rather than mislead.
+  validation {
+    condition = alltrue([
+      for k, v in var.subnets :
+      v.vpc_key == null || v.subnet_type == "OVERLAY"
+    ])
+    error_message = "Subnet 'vpc_key' applies to OVERLAY subnets only; a VLAN subnet belongs to a cluster, not a VPC."
   }
 }
 

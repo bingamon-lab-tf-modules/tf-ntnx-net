@@ -23,24 +23,17 @@ output "vpc_ids" {
 # Subnet Outputs
 ##################################################
 
+# Subnets live in two resource blocks (see locals: non_overlay_subnets), so
+# every subnet-shaped output merges both. Keys cannot collide: the two for_each
+# maps partition var.subnets on subnet_type.
 output "subnets" {
-  description = "Map of created subnets with their details."
-  value = {
-    for k, v in nutanix_subnet_v2.subnet : k => {
-      ext_id            = v.ext_id
-      name              = v.name
-      subnet_type       = v.subnet_type
-      network_id        = v.network_id
-      cluster_reference = v.cluster_reference
-      vpc_reference     = v.vpc_reference
-      is_external       = v.is_external
-    }
-  }
+  description = "Map of created subnets with their details, VLAN and OVERLAY alike."
+  value       = local.all_managed_subnets
 }
 
 output "subnet_ids" {
-  description = "Map of subnet keys to their external IDs."
-  value       = { for k, v in nutanix_subnet_v2.subnet : k => v.ext_id }
+  description = "Map of subnet keys to their external IDs, VLAN and OVERLAY alike."
+  value       = { for k, v in local.all_managed_subnets : k => v.ext_id }
 }
 
 ##################################################
@@ -131,29 +124,35 @@ output "network_function_ids" {
 # Discovery Outputs (Existing Resources)
 ##################################################
 
+# NOTE: these return a SUMMARY of each discovered entity (identity plus the
+# fields needed to choose between them), not the raw data source. See the
+# rationale on the discovery summary locals — returning the raw objects put every
+# CVM and host SSH public key, and Prism Central's node topology, into state and
+# into every plan log.
+
 output "existing_vpcs" {
-  description = "Existing VPCs discovered in the target Prism Central."
-  value       = data.nutanix_vpcs_v2.existing_vpcs
+  description = "Existing VPCs discovered in the target Prism Central: ext_id, name, description, vpc_type."
+  value       = local.existing_vpcs_summary
 }
 
 output "existing_subnets" {
-  description = "Existing subnets discovered in the target Prism Central."
-  value       = data.nutanix_subnets_v2.existing_subnets
+  description = "Existing subnets discovered in the target Prism Central: ext_id, name, subnet_type, network_id, cluster_reference, vpc_reference, is_external."
+  value       = local.existing_subnets_summary
 }
 
 output "existing_floating_ips" {
-  description = "Existing floating IPs discovered in the target Prism Central."
-  value       = data.nutanix_floating_ips_v2.existing_floating_ips
+  description = "Existing floating IPs discovered in the target Prism Central: ext_id, name, external_subnet_reference."
+  value       = local.existing_floating_ips_summary
 }
 
 output "existing_clusters" {
-  description = "Existing clusters available for subnet placement."
-  value       = data.nutanix_clusters_v2.clusters
+  description = "Existing clusters available for subnet placement: ext_id, name, cluster_function. A PRISM_CENTRAL cluster cannot host a subnet; an AOS one can."
+  value       = local.existing_clusters_summary
 }
 
 output "existing_network_functions" {
-  description = "Existing network functions discovered in the target Prism Central (null unless enable_data_lookups is true)."
-  value       = var.enable_data_lookups ? data.nutanix_network_functions_v2.existing_network_functions[0] : null
+  description = "Existing network functions discovered in the target Prism Central: ext_id, name. Null unless enable_data_lookups is true."
+  value       = local.existing_network_functions_summary
 }
 
 ##################################################
@@ -190,19 +189,9 @@ output "outputs" {
         vpc_type    = v.vpc_type
       }
     }
-    vpc_ids = { for k, v in nutanix_vpc_v2.vpc : k => v.ext_id }
-    subnets = {
-      for k, v in nutanix_subnet_v2.subnet : k => {
-        ext_id            = v.ext_id
-        name              = v.name
-        subnet_type       = v.subnet_type
-        network_id        = v.network_id
-        cluster_reference = v.cluster_reference
-        vpc_reference     = v.vpc_reference
-        is_external       = v.is_external
-      }
-    }
-    subnet_ids = { for k, v in nutanix_subnet_v2.subnet : k => v.ext_id }
+    vpc_ids    = { for k, v in nutanix_vpc_v2.vpc : k => v.ext_id }
+    subnets    = local.all_managed_subnets
+    subnet_ids = { for k, v in local.all_managed_subnets : k => v.ext_id }
     floating_ips = {
       for k, v in nutanix_floating_ip_v2.floating_ip : k => {
         ext_id                    = v.ext_id
@@ -238,12 +227,13 @@ output "outputs" {
         failure_handling        = v.failure_handling
       }
     }
-    network_function_ids       = { for k, v in nutanix_network_function_v2.network_function : k => v.ext_id }
-    existing_vpcs              = data.nutanix_vpcs_v2.existing_vpcs
-    existing_subnets           = data.nutanix_subnets_v2.existing_subnets
-    existing_floating_ips      = data.nutanix_floating_ips_v2.existing_floating_ips
-    existing_clusters          = data.nutanix_clusters_v2.clusters
-    existing_network_functions = var.enable_data_lookups ? data.nutanix_network_functions_v2.existing_network_functions[0] : null
+    network_function_ids = { for k, v in nutanix_network_function_v2.network_function : k => v.ext_id }
+    # Summaries, not the raw data sources — see the discovery summary locals.
+    existing_vpcs              = local.existing_vpcs_summary
+    existing_subnets           = local.existing_subnets_summary
+    existing_floating_ips      = local.existing_floating_ips_summary
+    existing_clusters          = local.existing_clusters_summary
+    existing_network_functions = local.existing_network_functions_summary
     network_summary = {
       total_vpcs              = length(var.vpcs)
       total_subnets           = length(var.subnets)
