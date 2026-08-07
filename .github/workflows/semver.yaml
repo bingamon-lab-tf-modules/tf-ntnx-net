@@ -98,7 +98,7 @@ jobs:
       # Obtain the PR and extract the semver labels.
       - id: extract_labels
         name: Extract labels
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -242,7 +242,7 @@ jobs:
 
       - id: calculate_semver
         name: Calculate semantic version
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -523,7 +523,7 @@ jobs:
 
       - id: create_release
         name: Create GitHub release
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
