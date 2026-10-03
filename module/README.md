@@ -10,14 +10,14 @@ A description of the module goes here.
 ## Requirements
 
 | Name | Version |
-|------|---------|
+| ---- | ------- |
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.10.0 |
 | <a name="requirement_nutanix"></a> [nutanix](#requirement\_nutanix) | >= 2.4.2 |
 
 ## Providers
 
 | Name | Version |
-|------|---------|
+| ---- | ------- |
 | <a name="provider_nutanix"></a> [nutanix](#provider\_nutanix) | 2.4.2 |
 
 ## Modules
@@ -27,7 +27,7 @@ No modules.
 ## Resources
 
 | Name | Type |
-|------|------|
+| ---- | ---- |
 | [nutanix_floating_ip_v2.floating_ip](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/floating_ip_v2) | resource |
 | [nutanix_network_function_v2.network_function](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/network_function_v2) | resource |
 | [nutanix_pbr_v2.routing_policy](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/pbr_v2) | resource |
@@ -44,7 +44,7 @@ No modules.
 ## Inputs
 
 | Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
+| ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_enable_data_lookups"></a> [enable\_data\_lookups](#input\_enable\_data\_lookups) | When true, enable discovery data sources for existing network functions (nutanix\_network\_functions\_v2). | `bool` | `false` | no |
 | <a name="input_floating_ips"></a> [floating\_ips](#input\_floating\_ips) | A map of floating IPs to manage in Nutanix. | <pre>map(object({<br/>    name                      = string<br/>    description               = optional(string, null)<br/>    external_subnet_reference = optional(string, null)<br/>    vpc_reference             = optional(string, null)<br/><br/>    floating_ip = optional(object({<br/>      ipv4 = optional(object({<br/>        value         = string<br/>        prefix_length = optional(number, 32)<br/>      }), null)<br/>    }), null)<br/><br/>    association = optional(object({<br/>      vm_nic_association = optional(object({<br/>        vm_nic_reference = string<br/>        vpc_reference    = optional(string, null)<br/>      }), null)<br/>      private_ip_association = optional(object({<br/>        vpc_reference = string<br/>        private_ip = object({<br/>          ipv4 = object({<br/>            value         = string<br/>            prefix_length = optional(number, 32)<br/>          })<br/>        })<br/>      }), null)<br/>    }), null)<br/>  }))</pre> | `{}` | no |
 | <a name="input_network_functions"></a> [network\_functions](#input\_network\_functions) | A map of network functions (Flow service chaining / traffic steering) to manage in Nutanix. | <pre>map(object({<br/>    name                    = string<br/>    description             = optional(string, null)<br/>    high_availability_mode  = string                 # ACTIVE_PASSIVE<br/>    traffic_forwarding_mode = optional(string, null) # INLINE, VTAP<br/>    failure_handling        = optional(string, null) # NO_ACTION, FAIL_CLOSE, FAIL_OPEN<br/><br/>    nic_pairs = list(object({<br/>      ingress_nic_reference = string<br/>      egress_nic_reference  = optional(string, null)<br/>      vm_reference          = optional(string, null)<br/>      is_enabled            = optional(bool, true)<br/>    }))<br/><br/>    data_plane_health_check_config = optional(object({<br/>      failure_threshold = optional(number, null)<br/>      interval_secs     = optional(number, null)<br/>      success_threshold = optional(number, null)<br/>      timeout_secs      = optional(number, null)<br/>    }), null)<br/><br/>    metadata = optional(object({<br/>      category_ids         = optional(list(string), null)<br/>      owner_reference_id   = optional(string, null)<br/>      project_reference_id = optional(string, null)<br/>    }), null)<br/>  }))</pre> | `{}` | no |
@@ -56,7 +56,7 @@ No modules.
 ## Outputs
 
 | Name | Description |
-|------|-------------|
+| ---- | ----------- |
 | <a name="output_existing_clusters"></a> [existing\_clusters](#output\_existing\_clusters) | Existing clusters available for subnet placement: ext\_id, name, cluster\_function. A PRISM\_CENTRAL cluster cannot host a subnet; an AOS one can. |
 | <a name="output_existing_floating_ips"></a> [existing\_floating\_ips](#output\_existing\_floating\_ips) | Existing floating IPs discovered in the target Prism Central: ext\_id, name, external\_subnet\_reference. |
 | <a name="output_existing_network_functions"></a> [existing\_network\_functions](#output\_existing\_network\_functions) | Existing network functions discovered in the target Prism Central: ext\_id, name. Null unless enable\_data\_lookups is true. |
