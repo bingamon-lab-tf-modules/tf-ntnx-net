@@ -68,3 +68,6 @@ utilize
 vtap
 prek
 nixos
+SecretSpec
+mktemp
+bingamon
