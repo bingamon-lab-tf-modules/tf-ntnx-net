@@ -94,7 +94,7 @@ module "network" {
 | Name      | Version  |
 | --------- | -------- |
 | terraform | >= 1.9.0 |
-| nutanix   | >= 2.4.2 |
+| nutanix   | ~> 2.5.1 |
 
 ## Inputs
 

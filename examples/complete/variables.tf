@@ -286,6 +286,19 @@ variable "routes" {
         }), null)
       }), null)
     }), null)
+
+    next_hops = optional(list(object({
+      next_hop_type      = string
+      next_hop_reference = optional(string, null)
+      next_hop_ip_address = optional(object({
+        ipv4 = optional(object({
+          value = string
+        }), null)
+        ipv6 = optional(object({
+          value = string
+        }), null)
+      }), null)
+    })), [])
   }))
   default = {}
 }

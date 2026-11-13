@@ -458,6 +458,19 @@ variable "routes" {
         }), null)
       }), null)
     }), null)
+
+    next_hops = optional(list(object({
+      next_hop_type      = string
+      next_hop_reference = optional(string, null)
+      next_hop_ip_address = optional(object({
+        ipv4 = optional(object({
+          value = string
+        }), null)
+        ipv6 = optional(object({
+          value = string
+        }), null)
+      }), null)
+    })), [])
   }))
   default = {}
 
@@ -475,6 +488,14 @@ variable "routes" {
       contains(["STATIC", "LOCAL", "DYNAMIC"], v.route_type)
     ])
     error_message = "Route 'route_type' must be one of: STATIC, LOCAL, DYNAMIC."
+  }
+
+  validation {
+    condition = alltrue([
+      for k, v in var.routes :
+      v.next_hop == null || length(v.next_hops) == 0
+    ])
+    error_message = "Route must set at most one of 'next_hop' or 'next_hops', not both."
   }
 }
 

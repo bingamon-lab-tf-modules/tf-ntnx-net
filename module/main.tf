@@ -536,7 +536,7 @@ resource "nutanix_routes_v2" "route" {
   }
 
   dynamic "next_hop" {
-    for_each = each.value.next_hop != null ? [each.value.next_hop] : []
+    for_each = length(each.value.next_hops) > 0 ? each.value.next_hops : (each.value.next_hop != null ? [each.value.next_hop] : [])
     content {
       next_hop_type      = next_hop.value.next_hop_type
       next_hop_reference = next_hop.value.next_hop_reference

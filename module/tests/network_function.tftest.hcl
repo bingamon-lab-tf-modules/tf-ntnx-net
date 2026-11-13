@@ -228,8 +228,30 @@ run "data_lookup_enabled" {
     enable_data_lookups = true
   }
 
+  override_data {
+    target = data.nutanix_network_functions_v2.existing_network_functions[0]
+    values = {
+      network_functions = [
+        {
+          ext_id                         = "00000000-0000-4000-8000-000000000040"
+          name                           = "existing-fw-chain"
+          data_plane_health_check_config = null
+          description                    = null
+          failure_handling               = "FAIL_CLOSE"
+          high_availability_mode         = "ACTIVE_PASSIVE"
+          links                          = null
+          metadata                       = null
+          nic_pairs                      = null
+          project_ext_id                 = null
+          tenant_id                      = null
+          traffic_forwarding_mode        = "INLINE"
+        }
+      ]
+    }
+  }
+
   assert {
-    condition     = output.existing_network_functions != null
+    condition     = output.existing_network_functions != null && length(output.existing_network_functions) == 1 && output.existing_network_functions[0].name == "existing-fw-chain"
     error_message = "Expected existing_network_functions to be populated when enable_data_lookups is true"
   }
 }
