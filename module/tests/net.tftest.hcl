@@ -1,5 +1,6 @@
 ##################################################
 # Unit Tests: Networking
+# cspell:words snat
 ##################################################
 
 #########################
@@ -413,4 +414,306 @@ run "invalid_pbr_action_type" {
   }
 
   expect_failures = [var.routing_policies]
+}
+
+# Test 11: Route with multiple next_hops blocks (v2.5.0+ schema).
+run "route_multiple_next_hops" {
+  command = plan
+
+  variables {
+    routes = {
+      multipath = {
+        name               = "multipath-route"
+        route_table_ext_id = "33333333-3333-3333-3333-333333333333"
+        route_type         = "STATIC"
+        destination = {
+          ipv4 = {
+            ip            = { value = "10.200.0.0", prefix_length = 16 }
+            prefix_length = 16
+          }
+        }
+        next_hops = [
+          {
+            next_hop_type      = "EXTERNAL_SUBNET"
+            next_hop_reference = "22222222-2222-2222-2222-222222222221"
+          },
+          {
+            next_hop_type      = "EXTERNAL_SUBNET"
+            next_hop_reference = "22222222-2222-2222-2222-222222222222"
+          }
+        ]
+      }
+    }
+  }
+
+  assert {
+    condition     = length(nutanix_routes_v2.route["multipath"].next_hop) == 2
+    error_message = "Expected 2 next_hop blocks planned on nutanix_routes_v2"
+  }
+}
+
+# Test 12: Route setting both next_hop and next_hops should fail validation.
+run "route_rejects_both_next_hop_and_next_hops" {
+  command = plan
+
+  variables {
+    routes = {
+      conflict = {
+        name               = "conflict-route"
+        route_table_ext_id = "33333333-3333-3333-3333-333333333333"
+        route_type         = "STATIC"
+        destination = {
+          ipv4 = {
+            ip            = { value = "10.200.0.0", prefix_length = 16 }
+            prefix_length = 16
+          }
+        }
+        next_hop = {
+          next_hop_type      = "EXTERNAL_SUBNET"
+          next_hop_reference = "22222222-2222-2222-2222-222222222221"
+        }
+        next_hops = [
+          {
+            next_hop_type      = "EXTERNAL_SUBNET"
+            next_hop_reference = "22222222-2222-2222-2222-222222222222"
+          }
+        ]
+      }
+    }
+  }
+
+  expect_failures = [var.routes]
+}
+
+# Test 13: Populated discovery data sources match Nutanix v2.5.1 schemas and sort deterministically.
+run "discovery_summaries_populated" {
+  command = plan
+
+  override_data {
+    target = data.nutanix_clusters_v2.clusters
+    values = {
+      cluster_entities = [
+        {
+          ext_id                   = "00000000-0000-4000-8000-000000000002"
+          name                     = "pc-cluster"
+          backup_eligibility_score = null
+          categories               = null
+          cluster_profile_ext_id   = null
+          container_name           = null
+          expand                   = null
+          inefficient_vm_count     = null
+          links                    = null
+          nodes                    = null
+          tenant_id                = null
+          upgrade_status           = null
+          vm_count                 = null
+          config = [
+            {
+              authorized_public_key_list       = null
+              build_info                       = null
+              cluster_arch                     = "X86_64"
+              cluster_function                 = ["PRISM_CENTRAL"]
+              cluster_software_map             = null
+              encryption_in_transit_status     = null
+              encryption_option                = null
+              encryption_scope                 = null
+              fault_tolerance_state            = null
+              hypervisor_types                 = null
+              incarnation_id                   = null
+              is_available                     = true
+              is_lts                           = null
+              is_password_remote_login_enabled = null
+              is_remote_support_enabled        = null
+              operation_mode                   = null
+              pulse_status                     = null
+              redundancy_factor                = null
+              timezone                         = null
+            }
+          ]
+          network = [
+            {
+              backplane                  = null
+              external_address           = null
+              external_data_services_ip  = null
+              external_subnet            = null
+              fqdn                       = null
+              http_proxy_list            = null
+              http_proxy_white_list      = null
+              internal_subnet            = null
+              key_management_server_type = null
+              masquerading_ip            = null
+              masquerading_port          = null
+              name_server_ip_list        = null
+              nfs_subnet_white_list      = null
+              ntp_server_ip_list         = null
+              smtp_server                = null
+              management_server = [
+                {
+                  ip             = null
+                  is_drs_enabled = false
+                  is_in_use      = true
+                  is_registered  = true
+                  type           = "VCENTER"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          ext_id                   = "00000000-0000-4000-8000-000000000001"
+          name                     = "pe-cluster-01"
+          backup_eligibility_score = null
+          categories               = null
+          cluster_profile_ext_id   = null
+          container_name           = null
+          expand                   = null
+          inefficient_vm_count     = null
+          links                    = null
+          network                  = null
+          nodes                    = null
+          tenant_id                = null
+          upgrade_status           = null
+          vm_count                 = null
+          config = [
+            {
+              authorized_public_key_list       = null
+              build_info                       = null
+              cluster_arch                     = "X86_64"
+              cluster_function                 = ["AOS"]
+              cluster_software_map             = null
+              encryption_in_transit_status     = null
+              encryption_option                = null
+              encryption_scope                 = null
+              fault_tolerance_state            = null
+              hypervisor_types                 = ["AHV"]
+              incarnation_id                   = null
+              is_available                     = true
+              is_lts                           = null
+              is_password_remote_login_enabled = null
+              is_remote_support_enabled        = null
+              operation_mode                   = null
+              pulse_status                     = null
+              redundancy_factor                = 2
+              timezone                         = "UTC"
+            }
+          ]
+        }
+      ]
+    }
+  }
+
+  override_data {
+    target = data.nutanix_vpcs_v2.existing_vpcs
+    values = {
+      vpcs = [
+        {
+          ext_id                                  = "00000000-0000-4000-8000-000000000010"
+          name                                    = "shared-vpc"
+          description                             = "Shared application VPC"
+          vpc_type                                = "REGULAR"
+          common_dhcp_options                     = null
+          external_routing_domain_reference       = null
+          external_subnets                        = null
+          externally_routable_prefixes            = null
+          kubernetes_clusters                     = null
+          links                                   = null
+          metadata                                = null
+          project_ext_id                          = null
+          scope                                   = "GLOBAL"
+          shared_with_projects                    = null
+          should_advertise_connected_subnets      = false
+          snat_ips                                = null
+          supported_multiple_external_subnet_type = null
+          tenant_id                               = null
+        }
+      ]
+    }
+  }
+
+  override_data {
+    target = data.nutanix_subnets_v2.existing_subnets
+    values = {
+      subnets = [
+        {
+          ext_id                           = "00000000-0000-4000-8000-000000000020"
+          name                             = "ext-vlan-100"
+          subnet_type                      = "VLAN"
+          network_id                       = 100
+          cluster_reference                = "00000000-0000-4000-8000-000000000001"
+          vpc_reference                    = null
+          is_external                      = true
+          is_connected                     = true
+          is_nat_enabled                   = true
+          is_advanced_networking           = false
+          bridge_name                      = null
+          cluster_name                     = null
+          description                      = null
+          dhcp_options                     = null
+          dynamic_ip_addresses             = null
+          hypervisor_type                  = null
+          ip_config                        = null
+          ip_prefix                        = null
+          ip_usage                         = null
+          links                            = null
+          metadata                         = null
+          migration_state                  = null
+          network_function_chain_reference = null
+          project_ext_id                   = null
+          reserved_ip_addresses            = null
+          shared_with_projects             = null
+          virtual_switch                   = null
+          virtual_switch_reference         = null
+          vpc                              = null
+        }
+      ]
+    }
+  }
+
+  override_data {
+    target = data.nutanix_floating_ips_v2.existing_floating_ips
+    values = {
+      floating_ips = [
+        {
+          ext_id                    = "00000000-0000-4000-8000-000000000030"
+          name                      = "existing-fip"
+          external_subnet_reference = "00000000-0000-4000-8000-000000000020"
+          association               = null
+          association_status        = null
+          description               = null
+          external_subnet           = null
+          floating_ip               = null
+          floating_ip_value         = null
+          links                     = null
+          metadata                  = null
+          private_ip                = null
+          project_ext_id            = null
+          tenant_id                 = null
+          vm_nic                    = null
+          vm_nic_reference          = null
+          vpc                       = null
+          vpc_reference             = null
+        }
+      ]
+    }
+  }
+
+  assert {
+    condition     = length(output.existing_clusters) == 2 && output.existing_clusters[0].name == "pe-cluster-01" && output.existing_clusters[0].cluster_function == tolist(["AOS"])
+    error_message = "Expected existing_clusters sorted by ext_id with AOS cluster first"
+  }
+
+  assert {
+    condition     = length(output.existing_vpcs) == 1 && output.existing_vpcs[0].name == "shared-vpc"
+    error_message = "Expected existing_vpcs summary to expose shared-vpc"
+  }
+
+  assert {
+    condition     = length(output.existing_subnets) == 1 && output.existing_subnets[0].is_external == true
+    error_message = "Expected existing_subnets summary to expose ext-vlan-100"
+  }
+
+  assert {
+    condition     = length(output.existing_floating_ips) == 1 && output.existing_floating_ips[0].name == "existing-fip"
+    error_message = "Expected existing_floating_ips summary to expose existing-fip"
+  }
 }
